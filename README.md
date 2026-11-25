@@ -8,6 +8,21 @@ un carrito «escrito por una IA» que compila, responde y tiene fallos sembrados
 
 La guía del laboratorio (con su rúbrica) está en el campus virtual; aquí está el código.
 
+## Equipo y entrega (sección C24-4-B)
+
+| Integrante | Rol principal |
+|---|---|
+| Abad Mejia, Jordan Alonso | Carrito del equipo (`shop/cart_team.py`), API y pruebas |
+| Chavez Campos, Farid Jasir | Revisión del carrito de la IA (`shop/cart_ai.py`), auditoría y compuerta |
+
+Estado final: `python manage.py test` → **67/67** con `SHOP_MODE=team` y con `SHOP_MODE=ai`;
+`python manage.py gate` y `python manage.py gate --modo ai` → **ACEPTAR (código 0)**.
+
+- Informe paso a paso con respuestas, tablas de fallos y uso de IA: [`docs/INFORME.md`](docs/INFORME.md)
+- Salidas completas de cada comando: [`docs/evidencias/`](docs/evidencias/)
+- Diff rechazado del agente (compuerta en 0, pregunta 3 lo rechaza): [`docs/agente/`](docs/agente/)
+- Estado original del carrito de la IA: etiqueta `ai-original`; un commit `fix(ai): …` por cada fallo.
+
 ## Puesta en marcha
 
 ```bash
