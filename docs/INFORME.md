@@ -70,3 +70,22 @@ Lee la variable de entorno `SHOP_MODE` (por defecto `team`) y con `importlib.imp
 `from shop.impl import cart`, de modo que **el mismo código y las mismas pruebas** se ejecutan contra la
 implementación elegida (patrón *Strategy* por configuración). Un modo desconocido o ausente lanza
 `RuntimeError`.
+
+## Paso 3 — Líneas: `add`, `remove`, `lines` y validación
+
+Se agregaron dos *helpers* privados: `_check_qty` (entero real ≥ 1; `bool` se rechaza aparte porque
+en Python `True` es un `int`) y `_product` (lanza `UnknownProduct`). `lines()` construye cada `Line`
+con el **precio del catálogo** en el orden de inserción de `_qty`.
+
+`python manage.py test shop.tests.test_lines` → 12 de 15 pasan. Las 3 restantes llaman a `total()` o
+`apply_coupon()`, que son de los pasos 6 y 7 (se ponen en verde allí; ver `evidencias/03-test-lines.txt`).
+
+**¿Por qué `remove` borra la línea cuando la cantidad llega a cero?** Una línea con cantidad 0 no
+representa nada que se vaya a comprar: ensucia `lines()`, el resumen y la API, y en el pago intentaría
+descontar 0 unidades. Por eso `left <= 0` elimina la clave de `_qty`; así “quitar 5 cuando hay 2” deja la
+línea fuera y nunca un número negativo.
+
+**¿Qué ocurriría con el total si quedara una cantidad negativa?** `Line.total = unit_price × qty` sería
+negativo y **restaría** al subtotal: con un teclado (189,00) y −3 mouse (−119,70) el subtotal sería 69,30,
+es decir, el cliente se llevaría el teclado pagando un tercio. Es exactamente el carrito
+`carts/04-cantidad-negativa.json`. Además, en el pago `stock -= qty` **aumentaría** el stock.

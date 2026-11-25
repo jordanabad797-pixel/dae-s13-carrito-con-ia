@@ -37,23 +37,53 @@ class Cart:
         cart._coupon = state.get("coupon")
         return cart
 
+    # --- validation helpers ---
+    @staticmethod
+    def _check_qty(qty):
+        """A quantity is a real int >= 1. bool is a subclass of int, so it is rejected explicitly."""
+        if isinstance(qty, bool) or not isinstance(qty, int) or qty < 1:
+            raise InvalidQuantity(f"Cantidad no válida: {qty!r}")
+
+    def _product(self, sku):
+        product = self._catalog.get(sku)
+        if product is None:
+            raise UnknownProduct(f"No existe el producto {sku!r}")
+        return product
+
     # --- lines ---
     def add(self, sku, qty=1):
-        """TODO: qty is an int >= 1 (InvalidQuantity); the sku exists (UnknownProduct);
-        what is already in the cart plus qty must not exceed the stock (OutOfStock, cart unchanged)."""
-        raise NotImplementedError("TODO: add")
+        """qty is an int >= 1 (InvalidQuantity); the sku exists (UnknownProduct);
+        qty must not exceed the stock (OutOfStock, cart unchanged)."""
+        self._check_qty(qty)
+        product = self._product(sku)
+        if qty > product.stock:
+            raise OutOfStock(f"{sku}: pides {qty} y quedan {product.stock}")
+        self._qty[sku] = self._qty.get(sku, 0) + qty
 
     def remove(self, sku, qty=None):
-        """TODO: qty=None removes the whole line; otherwise subtract qty and drop the line when it
+        """qty=None removes the whole line; otherwise subtract qty and drop the line when it
         reaches zero. A sku that is not in the cart is UnknownProduct. Never leave a negative quantity."""
-        raise NotImplementedError("TODO: remove")
+        if sku not in self._qty:
+            raise UnknownProduct(f"{sku!r} no está en el carrito")
+        if qty is None:
+            del self._qty[sku]
+            return
+        self._check_qty(qty)
+        left = self._qty[sku] - qty
+        if left <= 0:  # removing more than there is empties the line, never a negative quantity
+            del self._qty[sku]
+        else:
+            self._qty[sku] = left
 
     def qty_of(self, sku):
         return self._qty.get(sku, 0)
 
     def lines(self):
-        """TODO: one Line(sku, name, unit_price, qty) per sku, in insertion order, price from the catalog."""
-        raise NotImplementedError("TODO: lines")
+        """One Line(sku, name, unit_price, qty) per sku, in insertion order, price from the catalog."""
+        return [
+            Line(sku, self._catalog[sku].name, self._catalog[sku].price, qty)
+            for sku, qty in self._qty.items()
+        ]
 
     # --- coupon and totals ---
     def apply_coupon(self, code):
