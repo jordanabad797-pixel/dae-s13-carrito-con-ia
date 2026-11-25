@@ -1,0 +1,4 @@
+>>> stock antes del pago: MOU-01 = 20 | PAD-01 = 1
+>>> checkout lanzó OutOfStock: PAD-01: el carrito tiene 2 y quedan 1
+>>> stock después del pago fallido: MOU-01 = 15 | PAD-01 = 1
+>>> carrito: {'qty': {'MOU-01': 5, 'PAD-01': 2}, 'coupon': None}

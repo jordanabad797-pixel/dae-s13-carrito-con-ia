@@ -263,3 +263,146 @@ agrupadas por archivo:
 | 2. ¿El servidor es la única fuente del precio? | **No** | `:139 cart.add(payload["sku"], payload.get("qty", 1), payload.get("price"))` y `:53 self._prices[sku] = Decimal(str(price)) if price is not None else product.price` |
 | 3. ¿Cada regla de cantidad y existencias se cumple con cualquier secuencia? | **No** | `:50 if qty > product.stock:` (ignora lo que ya hay), `:63 self._qty[sku] -= qty` (puede quedar negativo), `:128-129` resta sin revalidar |
 | 4. ¿Repetir una acción da el mismo resultado? | **No** | `:81 self._coupons.append(code)`: cada repetición agrega otro descuento |
+
+## Paso 13 — Arreglar la versión de la IA, un fallo por commit
+
+El estado original quedó guardado en el commit `9e71199` (etiqueta `ai-original`). Después se corrigió
+**un fallo por commit** y se ejecutó `$env:SHOP_MODE = "ai"; python manage.py test` tras cada uno:
+
+| Orden | Commit | Fallo corregido | Cambio | Fallaban antes | Fallan después |
+|---|---|---|---|---|---|
+| 1 | `fix(ai): el precio sale solo del catalogo…` | #2 Precio del cliente | `add()` ya no recibe `price`; se elimina `_prices` del estado y de la sesión; `lines()` lee `self._catalog[sku].price`; `add_from_payload` no pasa `payload.get("price")` | 18 | 16 |
+| 2 | `fix(ai): existencias cuentan lo ya agregado…` | #3 Existencias | `wanted = qty_actual + qty` contra el stock; `checkout` revalida todas las líneas antes de restar | 16 | 10 |
+| 3 | `fix(ai): quitar de mas borra la linea…` | #4 Cantidad negativa | `left = qty − n`; si `left <= 0` se borra la línea | 10 | 8 |
+| 4 | `fix(ai): un solo cupon por carrito…` | #5 Cupón acumulado | `self._coupons = [code]` en lugar de `append` | 8 | 5 |
+| 5 | `fix(ai): dinero en Decimal de principio a fin…` | #1 Redondeo con `float` | Se elimina `IGV = 0.18` y `_money`; se usa `IGV_RATE` y `money()` de `domain.py` con `Decimal` | 5 | **0** |
+
+Se empezó por el fallo de seguridad porque es el más grave. El diff completo está en
+`evidencias/13-diff-cart-ai.patch`. Resultado: `Ran 67 tests … OK` con `SHOP_MODE=ai` y el duelo queda
+`team 67/0` y `ai 67/0` (`evidencias/13-duelo-despues.txt`). Todos los arreglos se lograron.
+
+## Paso 14 — Auditoría sin pantalla de `carts/*.json` (`SHOP_MODE=ai`)
+
+`python manage.py audit_cart carts/*.json` y luego con `--replay`, con el carrito de la IA **original**
+(`evidencias/14-audit-ai-*.txt`):
+
+| Carrito | Hallazgos (sin replay) | Con `--replay` (IA original) | Fallo de la IA al que corresponde |
+|---|---|---|---|
+| `01-correcto.json` | ninguno | ninguno | — (control: carrito consistente) |
+| `02-precio-del-cliente.json` | `PRICE_MISMATCH` LAP-01 cobra 0.01 y el catálogo dice 2499.90; `TOTAL_MISMATCH` subtotal 39.91 ≠ 2539.80, igv y total | sin `REPLAY_*` | **#2 Precio del cliente** |
+| `03-stock.json` | `OVER_STOCK` PAD-01: 4 unidades y solo hay 2 | `REPLAY_REJECTED` (un solo `add` de 4 sí lo detecta) | **#3 Existencias** |
+| `04-cantidad-negativa.json` | `BAD_QTY` MOU-01 −3; `TOTAL_MISMATCH` subtotal 69.30 ≠ 189.00 | `REPLAY_REJECTED` Cantidad no válida: −3 | **#4 Cantidad negativa** |
+| `05-cupon-doble.json` | `MULTIPLE_COUPONS`; `TOTAL_MISMATCH` discount 37.80 ≠ 18.90 | `REPLAY_MISMATCH` discount 37.8 vs 18.90, igv y total | **#5 Cupón acumulado** |
+| `06-redondeo.json` | `TOTAL_MISMATCH` discount 0.84 ≠ 0.85 | `REPLAY_MISMATCH` discount 0.84 vs 0.85 | **#1 Redondeo con `float`** |
+
+Después de los arreglos (`evidencias/14-audit-ai-replay-despues.txt`) desaparecen todos los
+`REPLAY_MISMATCH`; solo quedan los `REPLAY_REJECTED` de 03 y 04, que son **correctos**.
+
+**`TOTAL_MISMATCH` contra `REPLAY_MISMATCH`.** `TOTAL_MISMATCH` compara lo que el JSON **declara** con la
+fórmula de referencia: dice que *ese carrito* (el documento, el recibo) está mal, sin importar quién lo
+calculó. `REPLAY_MISMATCH` reconstruye el carrito con la **implementación activa** y compara lo que
+*el código* calcula con la fórmula: dice que la implementación calcula mal. Por eso, después de arreglar la
+IA, el 06 sigue con `TOTAL_MISMATCH` (el recibo antiguo sigue mal) pero ya no con `REPLAY_MISMATCH`.
+
+## Paso 15 — `--json` y `--strict`
+
+```
+$ python manage.py audit_cart carts/*.json --replay --json --strict
+{ "mode": "ai", "carts": [ {"file": "01-correcto.json", "ok": true, "findings": []}, … ] }
+CommandError: 5 carrito(s) con hallazgos.        → código de salida 1 (sin --strict: 0)
+```
+
+Un programa o un agente no “lee” el informe: hace `json.loads`, recorre `carts[].ok` y
+`carts[].findings[].code`, y decide por el **código de salida**. En un pipeline de CI, `--strict` hace que
+el paso falle (exit 1) y bloquee el despliegue o el *merge*; un agente puede filtrar por código
+(`PRICE_MISMATCH` → alerta de fraude, `OVER_STOCK` → revisar inventario) y abrir una incidencia.
+
+**¿Por qué la auditoría no sustituye las reglas en el servidor?** La auditoría trabaja sobre carritos
+que **ya existen**: avisa *después* de que el cobro ocurrió y la laptop salió a S/ 0,01. La regla en el
+servidor (`add_from_payload` que ignora `price`, `add` que valida stock) **impide** el daño *antes*. La
+auditoría es un control detectivo; la regla es un control preventivo. Se necesitan los dos.
+
+## Paso 16 — La compuerta: `python manage.py gate`
+
+| Ejecución | Pruebas | Carritos | Veredicto | Código |
+|---|---|---|---|---|
+| `gate --modo ai` **antes** de los arreglos | pasan 49, fallan 18 | 4 de 6 (05 y 06 `calcula_distinto`) | `RECHAZAR` | **1** |
+| `gate --modo ai` **después** de los arreglos | pasan 67, fallan 0 | 6 de 6 | `ACEPTAR` | **0** |
+| `gate` (carrito del equipo) | pasan 67, fallan 0 | 6 de 6 | `ACEPTAR` | **0** |
+
+Con `--json` (`evidencias/16-gate-*.json`) un agente leería: **`verdict`** y **`exit_code`** para decidir;
+`tests.failed` y `tests.failing` para saber qué prueba arreglar; y `carts[].expected` contra
+`carts[].result` para saber qué carrito no da lo esperado.
+
+**¿Por qué una implementación correcta debe rechazar los carritos 03 y 04?** Porque declaran algo que la
+tienda nunca debió permitir: 4 mousepads cuando hay 2 (`OVER_STOCK`) y una cantidad −3 (`BAD_QTY`). Si el
+*replay* de la implementación los aceptara, la implementación tendría el mismo agujero. `shop/gate.py`
+los marca en `MUST_REJECT` y espera `REPLAY_REJECTED`.
+
+**¿Por qué el replay no detecta el precio del cliente y quién lo detecta?** `_replay()` de `shop/audit.py`
+llama `cart.add(item["sku"], item["qty"])`: nunca pasa el `unit_price` del JSON. Así, aun con la IA
+original, el carrito se reconstruye con el precio del catálogo y da los totales correctos (el 02 sale
+`ok` en la compuerta). El fallo vive en `add_from_payload`, que solo se ejercita por HTTP; lo detecta la
+**otra mitad de la compuerta: las pruebas de la API** (`test_the_price_comes_from_the_catalog_not_from_the_client`
+y `test_a_negative_price_from_the_client_changes_nothing_either`).
+
+## Paso 17 — Trabajo con un agente bajo `AGENTS.md`
+
+El equipo usó **Claude Code** (agente con acceso al repositorio) siguiendo `AGENTS.md`: un método (o un
+fallo) por turno, solo `shop/cart_team.py` / `shop/cart_ai.py` y su archivo de pruebas, y **terminado =
+`gate` con código 0**. Cada turno quedó como un commit en el historial.
+
+**Rechazo documentado: la compuerta aceptaba y la pregunta 3 lo rechazó.** Al pedir al agente “simplificar
+`checkout` en una sola pasada”, propuso este diff (`docs/agente/rechazo-checkout-una-pasada.diff`):
+
+```diff
+-        for sku, qty in self._qty.items():  # phase 1: validate everything, touch nothing
++        order = self.summary()
++        for sku, qty in self._qty.items():  # check and lower each line in one pass
+             product = self._product(sku)
+             if qty > product.stock:
+                 raise OutOfStock(f"{sku}: el carrito tiene {qty} y quedan {product.stock}")
+-        order = self.summary()
+-        for sku, qty in self._qty.items():  # phase 2: every line is known to fit
+-            self._catalog[sku].stock -= qty
++            product.stock -= qty
+```
+
+- Compuerta **antes** del cambio: `ACEPTAR (0)`. Compuerta **con** el cambio: `ACEPTAR (0)` — 67/67
+  pruebas y 6/6 carritos (`docs/agente/rechazo-gate.txt`).
+- **Pregunta 3** (¿la regla de existencias se cumple con cualquier secuencia?): **no**. Contraejemplo
+  (`docs/agente/rechazo-contraejemplo.txt`): carrito con 5 mouse y 2 mousepads; otro cliente compra un
+  mousepad; el pago lanza `OutOfStock` en la **segunda** línea, pero el stock del mouse ya bajó de 20 a 15
+  y el carrito sigue lleno: se descontaron 5 mouse que nadie compró. Las pruebas no lo ven porque
+  `test_checkout_checks_the_stock_again` usa un carrito de **una** sola línea.
+- Decisión: **rechazado**; se mantuvo la versión en dos fases (validar todo, luego restar). Compuerta
+  después del rechazo: `ACEPTAR (0)` (`docs/agente/final-gate-team.json`).
+
+## Paso 18 — Tabla de uso de IA
+
+| # | Qué se le pidió (agente: Claude Code) | Qué respondió | Decisión | Por qué (pregunta o prueba) | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Implementar `add`, `remove`, `lines` y la validación en `cart_team.py` | Los métodos con `_check_qty` y `_product` | Aceptado | Q3: `remove` usa `left <= 0`; `test_lines` 12/15 (el resto depende de los pasos 6-7) | `evidencias/03-test-lines.txt` |
+| 2 | Completar `add` acumulado y `checkout` | `wanted = qty_of + qty` y `checkout` en dos fases | Aceptado | Q3: dos `add` seguidos y pago con stock cambiado → `OutOfStock` | `evidencias/04-test-stock.txt` |
+| 3 | Escribir los totales y `summary` | `money()` y `fmt()` sobre `Decimal` | Aceptado | Q1: ningún `float`; `test_totals` 10/10 | `evidencias/07-test-totals-verde.txt` |
+| 4 | Escribir `apply_coupon` | Asignación `self._coupon = normalized` | Aceptado | Q4: aplicar dos veces da 18,90; `test_coupons` 9/9 | `evidencias/07-test-coupons.txt` |
+| 5 | Escribir `add_from_payload` | Lee solo `sku` y `qty` | Aceptado | Q2: ninguna línea lee `price`; `test_api` 14/14 | `evidencias/08-test-api.txt` |
+| 6 | Explicar por qué `round(0.845, 2)` da 0,84 | Representación binaria 0,8449… y *half even* | Aceptado | Verificado en el intérprete con `Decimal(0.845)` | `evidencias/05-decimal-vs-float.txt` |
+| 7 | Corregir los 5 fallos de `cart_ai.py`, uno por turno | 5 diffs, uno por commit | Aceptado | Fallaban 18→16→10→8→5→0; compuerta IA 1 → 0; Q1-Q4 = sí | `evidencias/13-diff-cart-ai.patch`, `16-gate-ai-despues.txt` |
+| 8 | Simplificar `checkout` en una sola pasada | Diff que valida y resta línea por línea | **Rechazado** | Compuerta en 0, pero la **Q3** falla: un pago fallido descuenta stock de las líneas anteriores | `docs/agente/rechazo-*` |
+| 9 | Redactar el informe y las evidencias | Este documento | Aceptado tras la revisión del equipo | Cada cifra se copió de la salida de un comando | `docs/evidencias/` |
+
+## Conclusiones
+
+1. Separar la lógica del carrito (datos puros) de Django permite probarla en milisegundos y cambiar de
+   implementación (`SHOP_MODE`) sin tocar las pruebas, la API ni la auditoría.
+2. El dinero se calcula con `Decimal` y redondeo *half up* en cada parte; un `float` pierde céntimos
+   (0,845 → 0,84) que ninguna persona ve, pero las pruebas sí.
+3. El servidor es la única fuente del precio y de las reglas de stock: toda validación en el cliente o
+   en una auditoría posterior llega tarde.
+4. Las operaciones deben ser idempotentes (cupón) y atómicas (pago en dos fases): repetir o fallar a
+   mitad de camino no puede cambiar el resultado.
+5. El código de una IA “compila y responde”, pero tenía cinco fallos, uno de seguridad. Las pruebas como
+   oráculo los encontraron todos (18 pruebas en rojo) y guiaron la corrección uno por uno.
+6. La compuerta sin pantalla automatiza la aceptación (código 0/1), pero no reemplaza la revisión humana:
+   aceptó un `checkout` que rompía la regla de existencias y solo la pregunta 3 lo detectó.

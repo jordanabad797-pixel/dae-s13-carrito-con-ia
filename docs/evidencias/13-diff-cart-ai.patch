@@ -1,0 +1,159 @@
+diff --git a/shop/cart_ai.py b/shop/cart_ai.py
+index 18e5910..533cac3 100644
+--- a/shop/cart_ai.py
++++ b/shop/cart_ai.py
+@@ -3,20 +3,16 @@ from decimal import Decimal
+ 
+ from shop.domain import (
+     COUPONS,
++    IGV_RATE,
+     CartError,
+     InvalidCoupon,
+     InvalidQuantity,
+     Line,
+     OutOfStock,
+     UnknownProduct,
++    money,
+ )
+ 
+-IGV = 0.18
+-
+-
+-def _money(value):
+-    return Decimal(str(round(value, 2)))
+-
+ 
+ def _check_qty(qty):
+     if isinstance(qty, bool) or not isinstance(qty, int) or qty < 1:
+@@ -27,50 +23,48 @@ class Cart:
+     def __init__(self, catalog):
+         self._catalog = catalog
+         self._qty = {}
+-        self._prices = {}
+         self._coupons = []
+ 
+     def to_state(self):
+-        return {"qty": dict(self._qty), "prices": {k: str(v) for k, v in self._prices.items()},
+-                "coupons": list(self._coupons)}
++        # the price is NOT part of the state: it is read from the catalog every time
++        return {"qty": dict(self._qty), "coupons": list(self._coupons)}
+ 
+     @classmethod
+     def from_state(cls, catalog, state):
+         cart = cls(catalog)
+         cart._qty = {sku: int(q) for sku, q in state.get("qty", {}).items() if sku in catalog}
+-        cart._prices = {k: Decimal(v) for k, v in state.get("prices", {}).items() if k in cart._qty}
+-        cart._coupons = list(state.get("coupons", []))
++        cart._coupons = list(state.get("coupons", []))[-1:]  # at most one coupon
+         return cart
+ 
+-    def add(self, sku, qty=1, price=None):
++    def add(self, sku, qty=1):
+         _check_qty(qty)
+         product = self._catalog.get(sku)
+         if product is None:
+             raise UnknownProduct(f"No existe el producto {sku!r}")
+-        if qty > product.stock:
+-            raise OutOfStock(f"{sku}: pides {qty} y quedan {product.stock}")
+-        self._qty[sku] = self._qty.get(sku, 0) + qty
+-        self._prices[sku] = Decimal(str(price)) if price is not None else product.price
++        wanted = self._qty.get(sku, 0) + qty  # what is already in the cart counts too
++        if wanted > product.stock:
++            raise OutOfStock(f"{sku}: tendrías {wanted} y quedan {product.stock}")
++        self._qty[sku] = wanted
+ 
+     def remove(self, sku, qty=None):
+         if sku not in self._qty:
+             raise UnknownProduct(f"{sku!r} no está en el carrito")
+         if qty is None:
+             del self._qty[sku]
+-            del self._prices[sku]
+             return
+         _check_qty(qty)
+-        self._qty[sku] -= qty
+-        if self._qty[sku] == 0:
++        left = self._qty[sku] - qty
++        if left <= 0:  # removing more than there is drops the line: never a negative quantity
+             del self._qty[sku]
+-            del self._prices[sku]
++        else:
++            self._qty[sku] = left
+ 
+     def qty_of(self, sku):
+         return self._qty.get(sku, 0)
+ 
+     def lines(self):
+         return [
+-            Line(sku, self._catalog[sku].name, self._prices[sku], qty)
++            Line(sku, self._catalog[sku].name, self._catalog[sku].price, qty)
+             for sku, qty in self._qty.items()
+         ]
+ 
+@@ -78,34 +72,26 @@ class Cart:
+         code = (code or "").strip().upper()
+         if code not in COUPONS:
+             raise InvalidCoupon(f"Cupón desconocido: {code!r}")
+-        self._coupons.append(code)
+-
+-    def _subtotal(self):
+-        return sum(float(l.unit_price) * l.qty for l in self.lines())
+-
+-    def _discount(self):
+-        subtotal = self._subtotal()
+-        total_discount = 0.0
+-        for code in self._coupons:
+-            kind, amount = COUPONS[code]
+-            if kind == "percent":
+-                total_discount += subtotal * float(amount) / 100
+-            else:
+-                total_discount += min(float(amount), subtotal)
+-        return total_discount
++        self._coupons = [code]  # one coupon per cart: applying again REPLACES it (idempotent)
+ 
++    # Money is Decimal from start to end and every part is rounded half up with domain.money.
+     def subtotal(self):
+-        return _money(self._subtotal())
++        return money(sum((l.total for l in self.lines()), Decimal("0")))
+ 
+     def discount(self):
+-        return _money(self._discount())
++        subtotal = self.subtotal()
++        for code in self._coupons[:1]:
++            kind, amount = COUPONS[code]
++            if kind == "percent":
++                return money(subtotal * amount / 100)
++            return money(min(amount, subtotal))
++        return money(Decimal("0"))
+ 
+     def igv(self):
+-        return _money((self._subtotal() - self._discount()) * IGV)
++        return money((self.subtotal() - self.discount()) * IGV_RATE)
+ 
+     def total(self):
+-        base = self._subtotal() - self._discount()
+-        return _money(base) + self.igv()
++        return money(self.subtotal() - self.discount() + self.igv())
+ 
+     def summary(self):
+         return {
+@@ -124,11 +110,13 @@ class Cart:
+     def checkout(self):
+         if not self._qty:
+             raise CartError("El carrito está vacío")
++        for sku, qty in self._qty.items():  # check EVERY line again before touching any stock
++            if qty > self._catalog[sku].stock:
++                raise OutOfStock(f"{sku}: el carrito tiene {qty} y quedan {self._catalog[sku].stock}")
+         order = self.summary()
+         for sku, qty in self._qty.items():
+             self._catalog[sku].stock -= qty
+         self._qty = {}
+-        self._prices = {}
+         self._coupons = []
+         return order
+ 
+@@ -136,4 +124,4 @@ class Cart:
+ def add_from_payload(cart, payload):
+     if not isinstance(payload, dict) or not isinstance(payload.get("sku"), str):
+         raise CartError("Falta el campo «sku»")
+-    cart.add(payload["sku"], payload.get("qty", 1), payload.get("price"))
++    cart.add(payload["sku"], payload.get("qty", 1))  # never the price: the catalog decides it

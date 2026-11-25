@@ -1,0 +1,21 @@
+diff --git a/shop/cart_team.py b/shop/cart_team.py
+index 303d367..4fc5a97 100644
+--- a/shop/cart_team.py
++++ b/shop/cart_team.py
+@@ -149,13 +149,12 @@ class Cart:
+         """
+         if not self._qty:
+             raise CartError("El carrito está vacío")
+-        for sku, qty in self._qty.items():  # phase 1: validate everything, touch nothing
++        order = self.summary()
++        for sku, qty in self._qty.items():  # check and lower each line in one pass
+             product = self._product(sku)
+             if qty > product.stock:
+                 raise OutOfStock(f"{sku}: el carrito tiene {qty} y quedan {product.stock}")
+-        order = self.summary()
+-        for sku, qty in self._qty.items():  # phase 2: every line is known to fit
+-            self._catalog[sku].stock -= qty
++            product.stock -= qty
+         self._qty = {}
+         self._coupon = None
+         return order
