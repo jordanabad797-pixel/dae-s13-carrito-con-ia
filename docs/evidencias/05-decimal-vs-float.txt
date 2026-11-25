@@ -1,0 +1,10 @@
+>>> 0.1 + 0.2
+0.30000000000000004
+>>> Decimal("0.1") + Decimal("0.2")
+Decimal('0.3')
+>>> round(0.845, 2)
+0.84
+>>> Decimal("0.845").quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+Decimal('0.85')
+>>> Decimal(0.845)  # el valor real que guarda el float
+0.8449999999999999733546474089962430298328399658203125
