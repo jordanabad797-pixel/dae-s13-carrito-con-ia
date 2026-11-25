@@ -21,6 +21,8 @@ Estado final: `python manage.py test` → **67/67** con `SHOP_MODE=team` y con `
 - Informe paso a paso con respuestas, tablas de fallos y uso de IA: [`docs/INFORME.md`](docs/INFORME.md)
 - Salidas completas de cada comando: [`docs/evidencias/`](docs/evidencias/)
 - Diff rechazado del agente (compuerta en 0, pregunta 3 lo rechaza): [`docs/agente/`](docs/agente/)
+- Capturas del sistema en funcionamiento y arquitectura: [`docs/capturas/`](docs/capturas/)
+- Entregable (Word y PDF): [`docs/entregable/`](docs/entregable/)
 - Estado original del carrito de la IA: etiqueta `ai-original`; un commit `fix(ai): …` por cada fallo.
 
 ## Puesta en marcha
