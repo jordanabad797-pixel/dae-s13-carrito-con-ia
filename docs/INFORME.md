@@ -157,3 +157,21 @@ comprobar que las cifras del recibo cuadran.
 
 Coincide con `test_the_discount_rounds_half_up` (`discount == 0.85`, `total == 8.97`). Con `float`, el
 descuento sería `round(0.845, 2) = 0.84`.
+
+## Paso 7 — Cupones (`apply_coupon`)
+
+El código se normaliza con `strip().upper()`, se valida contra `COUPONS` (si no existe →
+`InvalidCoupon` y el carrito no cambia) y se **asigna** a `self._coupon`. Como es una asignación y no un
+`append`, aplicar el mismo cupón dos veces o aplicar otro distinto lo reemplaza. El tope del cupón fijo se
+resuelve en `discount()` con `min(amount, subtotal)`.
+
+`python manage.py test shop.tests.test_coupons` → **9/9 OK**. Con esto también quedan en verde
+`test_lines` (15/15), `test_stock` (10/10) y `test_totals` (10/10).
+
+**¿Qué ocurre cuando un cliente hace doble clic en «Aplicar cupón»?** El navegador envía dos `POST
+/api/cart/coupon/` con el mismo cuerpo. Con nuestra implementación la segunda petición deja el carrito
+exactamente igual que la primera (operación **idempotente**): descuento 18,90 sobre el teclado, no 37,80.
+**¿Por qué la tienda no debe acumular?** Porque el resultado dependería de cuántas veces llega la
+petición (doble clic, reintento de red, botón «atrás») y no de la intención del cliente; con descuentos
+apilados un cupón del 10 % aplicado diez veces regalaría el producto. La regla “uno por carrito, el último
+reemplaza” es la única que da el mismo total sin importar las repeticiones.

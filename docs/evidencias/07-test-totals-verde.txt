@@ -1,0 +1,18 @@
+test_a_discount_of_one_and_a_half_cents (shop.tests.test_totals.TotalsTests.test_a_discount_of_one_and_a_half_cents) ... ok
+test_igv_and_total_without_coupon (shop.tests.test_totals.TotalsTests.test_igv_and_total_without_coupon) ... ok
+test_igv_rounds_half_up (shop.tests.test_totals.TotalsTests.test_igv_rounds_half_up) ... ok
+test_money_is_decimal_not_float (shop.tests.test_totals.TotalsTests.test_money_is_decimal_not_float) ... ok
+test_subtotal_is_the_sum_of_price_times_quantity (shop.tests.test_totals.TotalsTests.test_subtotal_is_the_sum_of_price_times_quantity) ... ok
+test_summary_has_the_shape_the_api_sends (shop.tests.test_totals.TotalsTests.test_summary_has_the_shape_the_api_sends) ... ok
+test_summary_of_an_empty_cart (shop.tests.test_totals.TotalsTests.test_summary_of_an_empty_cart) ... ok
+test_ten_small_items_add_up_exactly (shop.tests.test_totals.TotalsTests.test_ten_small_items_add_up_exactly) ... ok
+test_the_discount_rounds_half_up (shop.tests.test_totals.TotalsTests.test_the_discount_rounds_half_up) ... ok
+test_total_is_the_sum_of_its_rounded_parts (shop.tests.test_totals.TotalsTests.test_total_is_the_sum_of_its_rounded_parts) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.003s
+
+OK
+Found 10 test(s).
+Skipping setup of unused database(s): default.
+System check identified no issues (0 silenced).

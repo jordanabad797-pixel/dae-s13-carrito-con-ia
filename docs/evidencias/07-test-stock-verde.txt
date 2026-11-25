@@ -1,0 +1,18 @@
+test_checkout_checks_the_stock_again (shop.tests.test_stock.StockTests.test_checkout_checks_the_stock_again) ... ok
+test_checkout_clears_the_coupon (shop.tests.test_stock.StockTests.test_checkout_clears_the_coupon) ... ok
+test_checkout_lowers_the_stock_and_empties_the_cart (shop.tests.test_stock.StockTests.test_checkout_lowers_the_stock_and_empties_the_cart) ... ok
+test_checkout_of_an_empty_cart_is_an_error (shop.tests.test_stock.StockTests.test_checkout_of_an_empty_cart_is_an_error) ... ok
+test_more_than_the_stock_is_rejected_and_the_cart_is_unchanged (shop.tests.test_stock.StockTests.test_more_than_the_stock_is_rejected_and_the_cart_is_unchanged) ... ok
+test_removing_frees_room_to_add_again (shop.tests.test_stock.StockTests.test_removing_frees_room_to_add_again) ... ok
+test_the_stock_counts_what_is_already_in_the_cart (shop.tests.test_stock.StockTests.test_the_stock_counts_what_is_already_in_the_cart) ... ok
+test_the_stock_is_never_negative_after_any_sequence (shop.tests.test_stock.StockTests.test_the_stock_is_never_negative_after_any_sequence) ... ok
+test_two_adds_cannot_get_around_the_stock (shop.tests.test_stock.StockTests.test_two_adds_cannot_get_around_the_stock) ... ok
+test_you_can_add_up_to_the_stock (shop.tests.test_stock.StockTests.test_you_can_add_up_to_the_stock) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.003s
+
+OK
+Found 10 test(s).
+Skipping setup of unused database(s): default.
+System check identified no issues (0 silenced).

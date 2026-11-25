@@ -1,0 +1,17 @@
+test_a_second_coupon_replaces_the_first (shop.tests.test_coupons.CouponTests.test_a_second_coupon_replaces_the_first) ... ok
+test_applying_the_same_coupon_twice_discounts_once (shop.tests.test_coupons.CouponTests.test_applying_the_same_coupon_twice_discounts_once) ... ok
+test_code_is_trimmed_and_case_insensitive (shop.tests.test_coupons.CouponTests.test_code_is_trimmed_and_case_insensitive) ... ok
+test_fixed_coupon (shop.tests.test_coupons.CouponTests.test_fixed_coupon) ... ok
+test_fixed_coupon_never_exceeds_the_subtotal (shop.tests.test_coupons.CouponTests.test_fixed_coupon_never_exceeds_the_subtotal) ... ok
+test_no_coupon_no_discount (shop.tests.test_coupons.CouponTests.test_no_coupon_no_discount) ... ok
+test_percent_coupon (shop.tests.test_coupons.CouponTests.test_percent_coupon) ... ok
+test_the_discount_follows_the_cart (shop.tests.test_coupons.CouponTests.test_the_discount_follows_the_cart) ... ok
+test_unknown_coupon_is_rejected_and_changes_nothing (shop.tests.test_coupons.CouponTests.test_unknown_coupon_is_rejected_and_changes_nothing) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.001s
+
+OK
+Found 9 test(s).
+Skipping setup of unused database(s): default.
+System check identified no issues (0 silenced).

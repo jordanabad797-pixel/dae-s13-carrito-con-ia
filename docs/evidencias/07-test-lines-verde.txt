@@ -1,0 +1,23 @@
+test_add_creates_a_line_with_the_catalog_price (shop.tests.test_lines.LinesTests.test_add_creates_a_line_with_the_catalog_price) ... ok
+test_add_defaults_to_one_unit (shop.tests.test_lines.LinesTests.test_add_defaults_to_one_unit) ... ok
+test_adding_the_same_product_accumulates (shop.tests.test_lines.LinesTests.test_adding_the_same_product_accumulates) ... ok
+test_errors_share_a_base_class (shop.tests.test_lines.LinesTests.test_errors_share_a_base_class) ... ok
+test_invalid_quantities_are_rejected (shop.tests.test_lines.LinesTests.test_invalid_quantities_are_rejected) ... ok
+test_lines_keep_insertion_order (shop.tests.test_lines.LinesTests.test_lines_keep_insertion_order) ... ok
+test_new_cart_is_empty (shop.tests.test_lines.LinesTests.test_new_cart_is_empty) ... ok
+test_remove_exactly_what_is_there_drops_the_line (shop.tests.test_lines.LinesTests.test_remove_exactly_what_is_there_drops_the_line) ... ok
+test_remove_more_than_there_is_never_leaves_a_negative_quantity (shop.tests.test_lines.LinesTests.test_remove_more_than_there_is_never_leaves_a_negative_quantity) ... ok
+test_remove_some_units_keeps_the_rest (shop.tests.test_lines.LinesTests.test_remove_some_units_keeps_the_rest) ... ok
+test_remove_something_that_is_not_in_the_cart (shop.tests.test_lines.LinesTests.test_remove_something_that_is_not_in_the_cart) ... ok
+test_remove_with_an_invalid_quantity (shop.tests.test_lines.LinesTests.test_remove_with_an_invalid_quantity) ... ok
+test_remove_without_quantity_drops_the_line (shop.tests.test_lines.LinesTests.test_remove_without_quantity_drops_the_line) ... ok
+test_state_survives_between_requests (shop.tests.test_lines.LinesTests.test_state_survives_between_requests) ... ok
+test_unknown_product_is_rejected (shop.tests.test_lines.LinesTests.test_unknown_product_is_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 0.003s
+
+OK
+Found 15 test(s).
+Skipping setup of unused database(s): default.
+System check identified no issues (0 silenced).
