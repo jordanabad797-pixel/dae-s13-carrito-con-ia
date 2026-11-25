@@ -1,0 +1,54 @@
+﻿PS> Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/api/cart/items/" -ContentType "application/json" -Body '{"sku": "KEY-01", "qty": 1}' -SessionVariable shop
+{
+    "lines":  [
+                  {
+                      "sku":  "KEY-01",
+                      "name":  "Teclado mecánico",
+                      "unit_price":  "189.00",
+                      "qty":  1,
+                      "line_total":  "189.00"
+                  }
+              ],
+    "coupon":  null,
+    "subtotal":  "189.00",
+    "discount":  "0.00",
+    "igv":  "34.02",
+    "total":  "223.02"
+}
+
+PS> Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/api/cart/coupon/" -ContentType "application/json" -Body '{"code": "bienvenida10"}' -WebSession $shop
+{
+    "lines":  [
+                  {
+                      "sku":  "KEY-01",
+                      "name":  "Teclado mecánico",
+                      "unit_price":  "189.00",
+                      "qty":  1,
+                      "line_total":  "189.00"
+                  }
+              ],
+    "coupon":  "BIENVENIDA10",
+    "subtotal":  "189.00",
+    "discount":  "18.90",
+    "igv":  "30.62",
+    "total":  "200.72"
+}
+
+PS> Invoke-WebRequest -Method Post -Uri "http://127.0.0.1:8000/api/cart/checkout/" -ContentType "application/json" -Body '{}' -WebSession $shop
+StatusCode : 201
+{
+    "lines":  [
+                  {
+                      "sku":  "KEY-01",
+                      "name":  "Teclado mecánico",
+                      "unit_price":  "189.00",
+                      "qty":  1,
+                      "line_total":  "189.00"
+                  }
+              ],
+    "coupon":  "BIENVENIDA10",
+    "subtotal":  "189.00",
+    "discount":  "18.90",
+    "igv":  "30.62",
+    "total":  "200.72"
+}

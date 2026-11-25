@@ -1,0 +1,27 @@
+$ curl -s -c jar -b jar -X POST http://127.0.0.1:8000/api/cart/items/ -H "Content-Type: application/json" -d '{"sku":"LAP-01","qty":1,"price":0.01}'   # intento de fijar el precio
+{"lines": [{"sku": "LAP-01", "name": "Laptop 14 pulgadas", "unit_price": "2499.90", "qty": 1, "line_total": "2499.90"}], "coupon": null, "subtotal": "2499.90", "discount": "0.00", "igv": "449.98", "total": "2949.88"}
+HTTP 201
+
+$ curl -s -c jar -b jar -X POST http://127.0.0.1:8000/api/cart/items/ -d '{"sku":"LAP-01","qty":3}'   # 1 en el carrito + 3 > stock 3
+{"error": "OutOfStock", "detail": "LAP-01: tendr\u00edas 4 y quedan 3"}
+HTTP 409
+
+$ curl -s -X POST http://127.0.0.1:8000/api/cart/items/ -d '{"sku":"XXX-99"}'
+{"error": "UnknownProduct", "detail": "No existe el producto 'XXX-99'"}
+HTTP 404
+
+$ curl -s -X POST http://127.0.0.1:8000/api/cart/items/ -d '{"sku":"MOU-01","qty":"dos"}'
+{"error": "InvalidQuantity", "detail": "Cantidad no v\u00e1lida: 'dos'"}
+HTTP 400
+
+$ curl -s -X POST http://127.0.0.1:8000/api/cart/coupon/ -d '{"code":"GRATIS100"}'
+{"error": "InvalidCoupon", "detail": "Cup\u00f3n desconocido: 'GRATIS100'"}
+HTTP 400
+
+$ curl -s -X DELETE "http://127.0.0.1:8000/api/cart/items/LAP-01/?qty=5"   # quitar de mas
+{"lines": [], "coupon": null, "subtotal": "0.00", "discount": "0.00", "igv": "0.00", "total": "0.00"}
+HTTP 200
+
+$ curl -s -X POST http://127.0.0.1:8000/api/cart/checkout/   # carrito vacio
+{"error": "CartError", "detail": "El carrito est\u00e1 vac\u00edo"}
+HTTP 400

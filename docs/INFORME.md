@@ -197,3 +197,24 @@ mandar `{"sku": "LAP-01", "price": 0.01}`. Si el servidor confiara en ese campo,
 S/ 2 499,90 se vendería a un céntimo (o con precio negativo, la tienda **pagaría** al cliente). Es una
 vulnerabilidad de manipulación de parámetros (*OWASP A04 – Insecure Design / Business Logic*). El precio
 es dato del servidor: se lee del catálogo en cada cálculo.
+
+## Paso 9 — La API a mano y la suite completa
+
+Con `python manage.py runserver` levantado, tres llamadas de la tabla del README con
+`Invoke-RestMethod` (la sesión del carrito viaja en la cookie que guarda `-SessionVariable`):
+
+```powershell
+Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/api/cart/items/" -ContentType "application/json" -Body '{"sku": "KEY-01", "qty": 1}' -SessionVariable shop
+# → 201  subtotal 189.00, igv 34.02, total 223.02
+Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/api/cart/coupon/" -ContentType "application/json" -Body '{"code": "bienvenida10"}' -WebSession $shop
+# → 200  coupon BIENVENIDA10, discount 18.90, igv 30.62, total 200.72
+Invoke-WebRequest -Method Post -Uri "http://127.0.0.1:8000/api/cart/checkout/" -ContentType "application/json" -Body '{}' -WebSession $shop
+# → 201  el pedido; el stock de KEY-01 baja de 5 a 4 y el carrito queda vacío
+```
+
+Respuestas completas en `evidencias/09-api-manual.txt`. Además se probaron los caminos de error con
+`curl` (`evidencias/09-api-errores.txt`): precio enviado por el cliente (se ignora: la laptop sigue a
+2 499,90), stock acumulado (409), producto desconocido (404), cantidad `"dos"` (400), cupón desconocido
+(400), quitar de más (200 con carrito vacío) y pagar un carrito vacío (400).
+
+**Suite completa:** `python manage.py test` → `Ran 67 tests … OK` (`evidencias/09-test-completo.txt`).
