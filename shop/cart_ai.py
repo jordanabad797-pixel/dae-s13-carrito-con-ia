@@ -57,9 +57,11 @@ class Cart:
             del self._qty[sku]
             return
         _check_qty(qty)
-        self._qty[sku] -= qty
-        if self._qty[sku] == 0:
+        left = self._qty[sku] - qty
+        if left <= 0:  # removing more than there is drops the line: never a negative quantity
             del self._qty[sku]
+        else:
+            self._qty[sku] = left
 
     def qty_of(self, sku):
         return self._qty.get(sku, 0)
