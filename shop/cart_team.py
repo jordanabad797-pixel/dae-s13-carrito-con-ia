@@ -53,12 +53,13 @@ class Cart:
     # --- lines ---
     def add(self, sku, qty=1):
         """qty is an int >= 1 (InvalidQuantity); the sku exists (UnknownProduct);
-        qty must not exceed the stock (OutOfStock, cart unchanged)."""
+        what is already in the cart plus qty must not exceed the stock (OutOfStock, cart unchanged)."""
         self._check_qty(qty)
         product = self._product(sku)
-        if qty > product.stock:
-            raise OutOfStock(f"{sku}: pides {qty} y quedan {product.stock}")
-        self._qty[sku] = self._qty.get(sku, 0) + qty
+        wanted = self.qty_of(sku) + qty  # count what is ALREADY in the cart, not only the new units
+        if wanted > product.stock:
+            raise OutOfStock(f"{sku}: tendrías {wanted} y quedan {product.stock}")
+        self._qty[sku] = wanted
 
     def remove(self, sku, qty=None):
         """qty=None removes the whole line; otherwise subtract qty and drop the line when it
@@ -115,9 +116,24 @@ class Cart:
 
     # --- checkout ---
     def checkout(self):
-        """TODO: empty cart -> CartError; stock is checked AGAIN (OutOfStock); on success the catalog stock
-        goes down by what was bought, the cart is emptied and the summary of the order is returned."""
-        raise NotImplementedError("TODO: checkout")
+        """Empty cart -> CartError; stock is checked AGAIN (OutOfStock); on success the catalog stock
+        goes down by what was bought, the cart is emptied and the summary of the order is returned.
+
+        Two phases: first EVERY line is validated, then the stock is lowered. If any line fails nothing
+        has changed yet (neither the catalog nor the cart), so the operation is all-or-nothing.
+        """
+        if not self._qty:
+            raise CartError("El carrito está vacío")
+        for sku, qty in self._qty.items():  # phase 1: validate everything, touch nothing
+            product = self._product(sku)
+            if qty > product.stock:
+                raise OutOfStock(f"{sku}: el carrito tiene {qty} y quedan {product.stock}")
+        order = self.summary()
+        for sku, qty in self._qty.items():  # phase 2: every line is known to fit
+            self._catalog[sku].stock -= qty
+        self._qty = {}
+        self._coupon = None
+        return order
 
 
 def add_from_payload(cart, payload):

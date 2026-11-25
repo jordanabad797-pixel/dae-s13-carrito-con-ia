@@ -89,3 +89,48 @@ línea fuera y nunca un número negativo.
 negativo y **restaría** al subtotal: con un teclado (189,00) y −3 mouse (−119,70) el subtotal sería 69,30,
 es decir, el cliente se llevaría el teclado pagando un tercio. Es exactamente el carrito
 `carts/04-cantidad-negativa.json`. Además, en el pago `stock -= qty` **aumentaría** el stock.
+
+## Paso 4 — Existencias acumuladas y pago (`checkout`)
+
+`add` ahora calcula `wanted = qty_of(sku) + qty` y compara **ese** número con el stock; si no alcanza,
+lanza `OutOfStock` sin tocar `_qty`. `checkout` trabaja en **dos fases**: primero valida todas las
+líneas contra el stock actual y, solo si todas caben, resta el stock, vacía el carrito y borra el cupón.
+
+`python manage.py test shop.tests.test_stock` → 7 de 10 pasan; las 3 restantes necesitan `summary()` y
+`apply_coupon()` (pasos 6 y 7). Ver `evidencias/04-test-stock.txt`.
+
+**¿Por qué el pago comprueba otra vez las existencias si `add` ya lo hizo?** Porque entre el `add` y el
+`checkout` pasa tiempo y el catálogo es compartido: otro cliente pudo pagar las mismas unidades, o el
+administrador corrigió el stock. La comprobación de `add` es una foto del pasado; la del pago es la única
+que vale para mover el inventario. La prueba `test_checkout_checks_the_stock_again` simula justo eso.
+
+**¿Qué pasaría si dos clientes pagan las últimas unidades al mismo tiempo?** Sin protección, ambos leen
+`stock = 2`, ambos validan y ambos restan: se venden 4 unidades que no existen (*race condition*, lectura
+y escritura no atómicas). En este proyecto hay tres defensas: (1) la validación en el pago; (2) la vista
+`cart_checkout` envuelve lectura y escritura en `transaction.atomic()`; (3) el campo `stock` es
+`PositiveIntegerField`, cuyo `CHECK` en la base rechaza un valor negativo como última barrera. En una base
+con concurrencia real (PostgreSQL) se añadiría `select_for_update()` o un `UPDATE … SET stock = stock - n
+WHERE stock >= n` para que solo uno de los dos gane.
+
+## Paso 5 — `float` contra `Decimal`
+
+```
+>>> 0.1 + 0.2
+0.30000000000000004
+>>> Decimal("0.1") + Decimal("0.2")
+Decimal('0.3')
+>>> round(0.845, 2)
+0.84
+>>> Decimal("0.845").quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+Decimal('0.85')
+>>> Decimal(0.845)  # el valor real que guarda el float
+0.8449999999999999733546474089962430298328399658203125
+```
+
+Un `float` es un número binario de 64 bits (IEEE 754): solo representa exactamente fracciones cuyo
+denominador es potencia de 2. 0,845 = 169/200 no lo es, así que se guarda el binario más cercano,
+**0,84499999…**, que ya está por debajo de la mitad; por eso `round(0.845, 2)` da 0,84 (además `round`
+usa redondeo bancario, *half even*). `Decimal("0.845")` guarda el valor decimal exacto y
+`quantize(..., ROUND_HALF_UP)` aplica la regla de la tienda: **al céntimo, la mitad hacia arriba**
+(0,005 → 0,01). Es la función `money()` de `shop/domain.py`. Ese céntimo es la diferencia entre el carrito
+de la IA y el nuestro en el mousepad con `BIENVENIDA10`.
