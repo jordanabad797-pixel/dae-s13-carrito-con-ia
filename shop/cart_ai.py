@@ -3,19 +3,15 @@ from decimal import Decimal
 
 from shop.domain import (
     COUPONS,
+    IGV_RATE,
     CartError,
     InvalidCoupon,
     InvalidQuantity,
     Line,
     OutOfStock,
     UnknownProduct,
+    money,
 )
-
-IGV = 0.18
-
-
-def _money(value):
-    return Decimal(str(round(value, 2)))
 
 
 def _check_qty(qty):
@@ -78,32 +74,24 @@ class Cart:
             raise InvalidCoupon(f"Cupón desconocido: {code!r}")
         self._coupons = [code]  # one coupon per cart: applying again REPLACES it (idempotent)
 
-    def _subtotal(self):
-        return sum(float(l.unit_price) * l.qty for l in self.lines())
-
-    def _discount(self):
-        subtotal = self._subtotal()
-        total_discount = 0.0
-        for code in self._coupons:
-            kind, amount = COUPONS[code]
-            if kind == "percent":
-                total_discount += subtotal * float(amount) / 100
-            else:
-                total_discount += min(float(amount), subtotal)
-        return total_discount
-
+    # Money is Decimal from start to end and every part is rounded half up with domain.money.
     def subtotal(self):
-        return _money(self._subtotal())
+        return money(sum((l.total for l in self.lines()), Decimal("0")))
 
     def discount(self):
-        return _money(self._discount())
+        subtotal = self.subtotal()
+        for code in self._coupons[:1]:
+            kind, amount = COUPONS[code]
+            if kind == "percent":
+                return money(subtotal * amount / 100)
+            return money(min(amount, subtotal))
+        return money(Decimal("0"))
 
     def igv(self):
-        return _money((self._subtotal() - self._discount()) * IGV)
+        return money((self.subtotal() - self.discount()) * IGV_RATE)
 
     def total(self):
-        base = self._subtotal() - self._discount()
-        return _money(base) + self.igv()
+        return money(self.subtotal() - self.discount() + self.igv())
 
     def summary(self):
         return {
