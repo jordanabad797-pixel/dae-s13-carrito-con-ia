@@ -1,0 +1,30 @@
+Creating test database for alias 'default' ('file:memorydb_default?mode=memory&cache=shared')...
+Found 14 test(s).
+Operations to perform:
+  Apply all migrations: contenttypes, sessions, shop
+Running migrations:
+  Applying contenttypes.0001_initial... OK
+  Applying contenttypes.0002_remove_content_type_name... OK
+  Applying sessions.0001_initial... OK
+  Applying shop.0001_initial...test_a_negative_price_from_the_client_changes_nothing_either (shop.tests.test_api.ApiTests.test_a_negative_price_from_the_client_changes_nothing_either) ... ok
+test_adding_an_item_returns_the_cart (shop.tests.test_api.ApiTests.test_adding_an_item_returns_the_cart) ... ok
+test_bad_input_is_400 (shop.tests.test_api.ApiTests.test_bad_input_is_400) ... ok
+test_checkout_creates_the_order_and_lowers_the_stock (shop.tests.test_api.ApiTests.test_checkout_creates_the_order_and_lowers_the_stock) ... ok
+test_checkout_of_an_empty_cart_is_400 (shop.tests.test_api.ApiTests.test_checkout_of_an_empty_cart_is_400) ... ok
+test_checkout_when_the_stock_changed_is_409_and_keeps_the_cart (shop.tests.test_api.ApiTests.test_checkout_when_the_stock_changed_is_409_and_keeps_the_cart) ... ok
+test_more_than_the_stock_is_409 (shop.tests.test_api.ApiTests.test_more_than_the_stock_is_409) ... ok
+test_remove_more_than_there_is_leaves_no_negative_line (shop.tests.test_api.ApiTests.test_remove_more_than_there_is_leaves_no_negative_line) ... ok
+test_remove_with_a_quantity_that_is_not_a_number_is_400 (shop.tests.test_api.ApiTests.test_remove_with_a_quantity_that_is_not_a_number_is_400) ... ok
+test_the_cart_persists_between_requests (shop.tests.test_api.ApiTests.test_the_cart_persists_between_requests) ... ok
+test_the_coupon_is_applied_once_even_if_the_client_repeats_it (shop.tests.test_api.ApiTests.test_the_coupon_is_applied_once_even_if_the_client_repeats_it) ... ok
+test_the_price_comes_from_the_catalog_not_from_the_client (shop.tests.test_api.ApiTests.test_the_price_comes_from_the_catalog_not_from_the_client) ... ok
+test_unknown_coupon_is_400 (shop.tests.test_api.ApiTests.test_unknown_coupon_is_400) ... ok
+test_unknown_product_is_404 (shop.tests.test_api.ApiTests.test_unknown_product_is_404) ... ok
+
+----------------------------------------------------------------------
+Ran 14 tests in 0.044s
+
+OK
+Destroying test database for alias 'default' ('file:memorydb_default?mode=memory&cache=shared')...
+ OK
+System check identified no issues (0 silenced).

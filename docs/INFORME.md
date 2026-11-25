@@ -175,3 +175,25 @@ exactamente igual que la primera (operación **idempotente**): descuento 18,90 s
 petición (doble clic, reintento de red, botón «atrás») y no de la intención del cliente; con descuentos
 apilados un cupón del 10 % aplicado diez veces regalaría el producto. La regla “uno por carrito, el último
 reemplaza” es la única que da el mismo total sin importar las repeticiones.
+
+## Paso 8 — La API: `add_from_payload`
+
+```python
+def add_from_payload(cart, payload):
+    if not isinstance(payload, dict) or not isinstance(payload.get("sku"), str):
+        raise CartError("El cuerpo debe ser un objeto con el campo «sku» (texto)")
+    cart.add(payload["sku"], payload.get("qty", 1))
+```
+
+Solo se leen `sku` y `qty`; la validación de la cantidad la hace `add` (`"dos"`, `0`, `2.5` → 400). Un
+cuerpo que es una lista (`[1, 2]`) o sin `sku` → `CartError` → 400. La clave `price` del cuerpo **nunca se
+lee**: no existe ningún camino por el que llegue al carrito.
+
+`python manage.py test shop.tests.test_api` → **14/14 OK** (ver `evidencias/08-test-api.txt`).
+
+**¿Por qué el precio no puede venir del cliente y qué pasaría si viniera?** Todo lo que llega en una
+petición HTTP lo controla el cliente: basta abrir las herramientas del navegador, `curl` o Postman para
+mandar `{"sku": "LAP-01", "price": 0.01}`. Si el servidor confiara en ese campo, una laptop de
+S/ 2 499,90 se vendería a un céntimo (o con precio negativo, la tienda **pagaría** al cliente). Es una
+vulnerabilidad de manipulación de parámetros (*OWASP A04 – Insecure Design / Business Logic*). El precio
+es dato del servidor: se lee del catálogo en cada cálculo.

@@ -4,9 +4,9 @@ The rules (money, stock, coupons, checkout) are in README.md and in shop/domain.
 shop/domain.py or the tests. Money is Decimal (never float) and the price always comes from the
 catalog, never from the request.
 """
-from decimal import Decimal  # noqa: F401
+from decimal import Decimal
 
-from shop.domain import (  # noqa: F401  (you will need most of these)
+from shop.domain import (
     COUPONS,
     IGV_RATE,
     CartError,
@@ -162,7 +162,12 @@ class Cart:
 
 
 def add_from_payload(cart, payload):
-    """TODO: translate the JSON body of POST /api/cart/items/ ({"sku": ..., "qty": ...}) into a cart.add
-    call. The body is untrusted: if it is not a dict with a string «sku», raise CartError. The price is
-    NOT part of the contract: the catalog is the only source of prices."""
-    raise NotImplementedError("TODO: add_from_payload")
+    """Translate the JSON body of POST /api/cart/items/ ({"sku": ..., "qty": ...}) into a cart.add call.
+
+    The body is untrusted: if it is not a dict with a string «sku», raise CartError. Only «sku» and «qty»
+    are read; any other key («price», «unit_price», «discount»...) is ignored on purpose, because the
+    catalog is the only source of prices.
+    """
+    if not isinstance(payload, dict) or not isinstance(payload.get("sku"), str):
+        raise CartError("El cuerpo debe ser un objeto con el campo «sku» (texto)")
+    cart.add(payload["sku"], payload.get("qty", 1))
