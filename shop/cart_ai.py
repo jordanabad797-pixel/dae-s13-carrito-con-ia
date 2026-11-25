@@ -37,7 +37,7 @@ class Cart:
     def from_state(cls, catalog, state):
         cart = cls(catalog)
         cart._qty = {sku: int(q) for sku, q in state.get("qty", {}).items() if sku in catalog}
-        cart._coupons = list(state.get("coupons", []))
+        cart._coupons = list(state.get("coupons", []))[-1:]  # at most one coupon
         return cart
 
     def add(self, sku, qty=1):
@@ -76,7 +76,7 @@ class Cart:
         code = (code or "").strip().upper()
         if code not in COUPONS:
             raise InvalidCoupon(f"Cupón desconocido: {code!r}")
-        self._coupons.append(code)
+        self._coupons = [code]  # one coupon per cart: applying again REPLACES it (idempotent)
 
     def _subtotal(self):
         return sum(float(l.unit_price) * l.qty for l in self.lines())
