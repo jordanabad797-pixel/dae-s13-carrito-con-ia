@@ -218,3 +218,48 @@ Respuestas completas en `evidencias/09-api-manual.txt`. Además se probaron los 
 (400), quitar de más (200 con carrito vacío) y pagar un carrito vacío (400).
 
 **Suite completa:** `python manage.py test` → `Ran 67 tests … OK` (`evidencias/09-test-completo.txt`).
+
+## Paso 10 — El duelo
+
+```
+$ python manage.py duelo
+Duelo: las mismas pruebas contra cada carrito
+team       tu carrito                 pasan  67   fallan   0
+ai         el carrito de la IA        pasan  49   fallan  18
+```
+
+`python manage.py duelo --modo ai` (`evidencias/10-duelo-ai.txt`) — las 18 pruebas que fallan,
+agrupadas por archivo:
+
+| Archivo | Pruebas que fallan (18) |
+|---|---|
+| `test_api.py` (6) | `test_the_price_comes_from_the_catalog_not_from_the_client`, `test_a_negative_price_from_the_client_changes_nothing_either`, `test_more_than_the_stock_is_409`, `test_checkout_when_the_stock_changed_is_409_and_keeps_the_cart` (ERROR: `IntegrityError: CHECK constraint failed: stock`), `test_remove_more_than_there_is_leaves_no_negative_line`, `test_the_coupon_is_applied_once_even_if_the_client_repeats_it` |
+| `test_stock.py` (4) | `test_the_stock_counts_what_is_already_in_the_cart`, `test_two_adds_cannot_get_around_the_stock`, `test_checkout_checks_the_stock_again`, `test_the_stock_is_never_negative_after_any_sequence` |
+| `test_totals.py` (4) | `test_the_discount_rounds_half_up`, `test_a_discount_of_one_and_a_half_cents`, `test_igv_rounds_half_up`, `test_total_is_the_sum_of_its_rounded_parts` |
+| `test_coupons.py` (2) | `test_applying_the_same_coupon_twice_discounts_once`, `test_a_second_coupon_replaces_the_first` |
+| `test_lines.py` (1) | `test_remove_more_than_there_is_never_leaves_a_negative_quantity` |
+| `test_audit.py` (1) | `test_replay_of_the_rounding_cart_matches_your_cart` |
+
+## Paso 11 — Clasificación de los cinco fallos de `shop/cart_ai.py`
+
+| # | Fallo | Archivo y línea | Prueba que lo detecta | Mensaje / diferencia | Causa | ¿Se vería a mano? |
+|---|---|---|---|---|---|---|
+| 1 | Redondeo con flotantes | `cart_ai.py:14` `IGV = 0.18`; `:17-18` `_money` = `Decimal(str(round(value, 2)))`; `:84` `float(l.unit_price) * l.qty`; `:88-94` descuento en `float` | `test_totals`: `test_the_discount_rounds_half_up`, `test_a_discount_of_one_and_a_half_cents`, `test_igv_rounds_half_up`, `test_total_is_the_sum_of_its_rounded_parts`; `test_audit`: `test_replay_of_the_rounding_cart…` | `Decimal('0.84') != Decimal('0.85')`; `0.1 != 0.11`; `452.2 != 452.21`; `71.63 != 71.64` | El dinero se convierte a `float` (binario, inexacto) y `round()` usa *half even* sobre un valor que ya es 0,8449…; el resultado se pasa luego a `Decimal`, demasiado tarde | Casi nunca: es un céntimo y solo cuando el tercer decimal exacto es 5 (mousepad con 10 %). Se ve al cuadrar la caja, al comparar con la factura electrónica o con muchas ventas |
+| 2 | Precio tomado del cliente **(fallo de seguridad)** | `cart_ai.py:45` `def add(self, sku, qty=1, price=None)`; `:53` `self._prices[sku] = Decimal(str(price)) if price …`; `:139` `cart.add(…, payload.get("price"))`; `:34` guarda los precios en la sesión | `test_api`: `test_the_price_comes_from_the_catalog_not_from_the_client`, `test_a_negative_price_from_the_client_changes_nothing_either` | `'0.01' != '2499.90'`; subtotal `'-100.00' != '2499.90'` | El cuerpo de la petición (dato no confiable) decide el precio | **No**: la pantalla de la tienda nunca manda `price`. **Solo se ve con la API** (curl, Postman, DevTools). Es manipulación de parámetros: una laptop a S/ 0,01 o un precio negativo |
+| 3 | Existencias que no cuentan lo ya agregado | `cart_ai.py:50` `if qty > product.stock` (compara solo lo nuevo); `:128-129` `checkout` resta sin volver a comprobar | `test_stock`: `test_the_stock_counts_what_is_already_in_the_cart`, `test_two_adds_cannot_get_around_the_stock`, `test_checkout_checks_the_stock_again`, `test_the_stock_is_never_negative_after_any_sequence`; `test_api`: `test_more_than_the_stock_is_409`, `test_checkout_when_the_stock_changed…` | `OutOfStock not raised`; `-2 not greater than or equal to 0`; `201 != 409`; `IntegrityError: CHECK constraint failed: stock` | La regla “carrito + nuevo ≤ stock” se valida por petición y no por carrito; el pago confía en la validación vieja | Sí, con un producto de poco stock: agregar 2 mousepads y luego 1 más (o 2 + 2) en dos clics. Se nota después: se vende lo que no hay |
+| 4 | Cantidad negativa al quitar | `cart_ai.py:63` `self._qty[sku] -= qty`; `:64` `if self._qty[sku] == 0` (no contempla < 0) | `test_lines`: `test_remove_more_than_there_is_never_leaves_a_negative_quantity`; `test_api`: `test_remove_more_than_there_is_leaves_no_negative_line` | `-3 != 0`; `lines` contiene MOU-01 con qty −3 en vez de `[]` | Resta sin piso; solo borra la línea si queda exactamente en 0 | Solo si la pantalla deja escribir cuántas quitar (o con `DELETE …?qty=5`). La línea negativa resta dinero del total y al pagar **sube** el stock |
+| 5 | Descuento acumulado dos veces | `cart_ai.py:31` `self._coupons = []`; `:81` `self._coupons.append(code)`; `:89-94` suma un descuento por cada cupón | `test_coupons`: `test_applying_the_same_coupon_twice_discounts_once`, `test_a_second_coupon_replaces_the_first`; `test_api`: `test_the_coupon_is_applied_once_even_if_the_client_repeats_it` | `Decimal('37.8') != Decimal('18.90')`; `38.9 != 20.00`; `'37.80' != '18.90'` | Lista de cupones en lugar de un solo cupón; aplicar no es idempotente | Sí: doble clic en «Aplicar cupón», reintento de red o volver a aplicar otro código |
+
+- **Fallo de seguridad:** el #2 (precio del cliente). Los demás son errores de lógica que hacen perder
+  dinero, pero el #2 lo **explota a voluntad** un atacante.
+- **Solo se ve con la API:** el #2. Un cliente que usa la interfaz jamás envía el precio; hace falta
+  construir la petición a mano.
+
+## Paso 12 — Las cuatro preguntas de revisión aplicadas a `cart_ai.py`
+
+| Pregunta | Respuesta | Línea que lo demuestra |
+|---|---|---|
+| 1. ¿Todo el dinero es `Decimal` de principio a fin, con *half up*? | **No** | `:14 IGV = 0.18`, `:18 return Decimal(str(round(value, 2)))`, `:84 sum(float(l.unit_price) * l.qty …)`, `:88 total_discount = 0.0` |
+| 2. ¿El servidor es la única fuente del precio? | **No** | `:139 cart.add(payload["sku"], payload.get("qty", 1), payload.get("price"))` y `:53 self._prices[sku] = Decimal(str(price)) if price is not None else product.price` |
+| 3. ¿Cada regla de cantidad y existencias se cumple con cualquier secuencia? | **No** | `:50 if qty > product.stock:` (ignora lo que ya hay), `:63 self._qty[sku] -= qty` (puede quedar negativo), `:128-129` resta sin revalidar |
+| 4. ¿Repetir una acción da el mismo resultado? | **No** | `:81 self._coupons.append(code)`: cada repetición agrega otro descuento |
