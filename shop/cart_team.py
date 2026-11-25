@@ -93,26 +93,46 @@ class Cart:
         raise NotImplementedError("TODO: apply_coupon")
 
     def subtotal(self):
-        """TODO: sum of price * qty, rounded to cents (Decimal)."""
-        raise NotImplementedError("TODO: subtotal")
+        """Sum of price * qty, rounded to cents (Decimal)."""
+        return money(sum((line.total for line in self.lines()), Decimal("0")))
 
     def discount(self):
-        """TODO: percent coupon = subtotal * pct / 100 rounded half up; fixed coupon = the amount, but
+        """Percent coupon = subtotal * pct / 100 rounded half up; fixed coupon = the amount, but
         never more than the subtotal; no coupon = Decimal('0.00')."""
-        raise NotImplementedError("TODO: discount")
+        if self._coupon is None:
+            return money(Decimal("0"))
+        kind, amount = COUPONS[self._coupon]
+        subtotal = self.subtotal()
+        if kind == "percent":
+            return money(subtotal * amount / 100)
+        return money(min(amount, subtotal))
+
+    def _base(self):
+        """Taxable base: what is left after the discount."""
+        return self.subtotal() - self.discount()
 
     def igv(self):
-        """TODO: 18 % of (subtotal - discount), rounded half up."""
-        raise NotImplementedError("TODO: igv")
+        """18 % of (subtotal - discount), rounded half up."""
+        return money(self._base() * IGV_RATE)
 
     def total(self):
-        """TODO: (subtotal - discount) + igv."""
-        raise NotImplementedError("TODO: total")
+        """(subtotal - discount) + igv: the sum of parts that are already rounded."""
+        return money(self._base() + self.igv())
 
     def summary(self):
-        """TODO: the dict the API returns. Keys: lines (list of dicts with sku, name, unit_price,
-        qty, line_total as 2-decimal strings), coupon, subtotal, discount, igv, total (strings via fmt)."""
-        raise NotImplementedError("TODO: summary")
+        """The dict the API returns: every amount as a 2-decimal string (never a float in JSON)."""
+        return {
+            "lines": [
+                {"sku": line.sku, "name": line.name, "unit_price": fmt(line.unit_price), "qty": line.qty,
+                 "line_total": fmt(line.total)}
+                for line in self.lines()
+            ],
+            "coupon": self._coupon,
+            "subtotal": fmt(self.subtotal()),
+            "discount": fmt(self.discount()),
+            "igv": fmt(self.igv()),
+            "total": fmt(self.total()),
+        }
 
     # --- checkout ---
     def checkout(self):

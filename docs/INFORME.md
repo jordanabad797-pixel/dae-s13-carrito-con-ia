@@ -134,3 +134,26 @@ usa redondeo bancario, *half even*). `Decimal("0.845")` guarda el valor decimal 
 `quantize(..., ROUND_HALF_UP)` aplica la regla de la tienda: **al céntimo, la mitad hacia arriba**
 (0,005 → 0,01). Es la función `money()` de `shop/domain.py`. Ese céntimo es la diferencia entre el carrito
 de la IA y el nuestro en el mousepad con `BIENVENIDA10`.
+
+## Paso 6 — Totales con `Decimal` y el helper `money`
+
+`subtotal`, `discount`, `igv` y `total` devuelven siempre `Decimal` redondeado con `money()`; `summary`
+convierte cada importe a texto con `fmt()` (dos decimales), de modo que el JSON nunca lleva un `float`.
+`total` suma partes **ya redondeadas** (`(subtotal − descuento) + igv`), así el cliente siempre puede
+comprobar que las cifras del recibo cuadran.
+
+`python manage.py test shop.tests.test_totals` → 6 de 10 pasan antes del paso 7; las otras 4 usan
+`apply_coupon` y pasan en el paso 7 (ver `evidencias/06-test-totals.txt` y `07-test-coupons.txt`).
+
+**Cálculo a mano: un mousepad (PAD-01, S/ 8,45) con `BIENVENIDA10`**
+
+| Concepto | Operación | Exacto | Redondeado (half up) |
+|---|---|---|---|
+| Subtotal | 8,45 × 1 | 8,45 | **8,45** |
+| Descuento | 8,45 × 10 % | 0,845 | **0,85** |
+| Base | 8,45 − 0,85 | 7,60 | 7,60 |
+| IGV | 7,60 × 18 % | 1,368 | **1,37** |
+| Total | 7,60 + 1,37 | 8,97 | **8,97** |
+
+Coincide con `test_the_discount_rounds_half_up` (`discount == 0.85`, `total == 8.97`). Con `float`, el
+descuento sería `round(0.845, 2) = 0.84`.
