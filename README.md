@@ -10,10 +10,7 @@ La guía del laboratorio (con su rúbrica) está en el campus virtual; aquí est
 
 ## Equipo y entrega (sección C24-4-B)
 
-| Integrante | Rol principal |
-|---|---|
-| Abad Mejia, Jordan Alonso | Carrito del equipo (`shop/cart_team.py`), API y pruebas |
-| Chavez Campos, Farid Jasir | Revisión del carrito de la IA (`shop/cart_ai.py`), auditoría y compuerta |
+Integrantes: Abad Mejia, Jordan Alonso · Chavez Campos, Farid Jasir.
 
 Estado final: `python manage.py test` → **67/67** con `SHOP_MODE=team` y con `SHOP_MODE=ai`;
 `python manage.py gate` y `python manage.py gate --modo ai` → **ACEPTAR (código 0)**.

@@ -2,13 +2,6 @@
 
 **Curso:** Desarrollo de Aplicaciones Empresariales · **Sección:** C24-4-B · **Periodo:** 2026-2
 
-**Integrantes**
-
-| Integrante | Rol principal |
-|---|---|
-| Abad Mejia, Jordan Alonso | Carrito del equipo (`shop/cart_team.py`), API y pruebas |
-| Chavez Campos, Farid Jasir | Revisión del carrito de la IA (`shop/cart_ai.py`), auditoría y compuerta |
-
 Las salidas completas de cada comando están en [`docs/evidencias/`](evidencias/).
 
 ---
@@ -406,3 +399,10 @@ fallo) por turno, solo `shop/cart_team.py` / `shop/cart_ai.py` y su archivo de p
    oráculo los encontraron todos (18 pruebas en rojo) y guiaron la corrección uno por uno.
 6. La compuerta sin pantalla automatiza la aceptación (código 0/1), pero no reemplaza la revisión humana:
    aceptó un `checkout` que rompía la regla de existencias y solo la pregunta 3 lo detectó.
+
+## Integrantes
+
+- Abad Mejia, Jordan Alonso
+- Chavez Campos, Farid Jasir
+
+Sección C24-4-B · Periodo 2026-2
